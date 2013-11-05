@@ -1,0 +1,15 @@
+﻿<Properties>
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="Assets\Scripts\SideviewCharacterController.cs">
+    <Files>
+      <File FileName="Assets\Scripts\SideviewCharacterController.cs" Line="137" Column="2" />
+      <File FileName="Assets\Scripts\GroundedTriggerCheck.cs" Line="15" Column="10" />
+      <File FileName="Assets\Scripts\MovingPlatform.cs" Line="17" Column="6" />
+      <File FileName="Assets\Scripts\MovingPlatformTrigger.cs" Line="28" Column="4" />
+    </Files>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore />
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>
