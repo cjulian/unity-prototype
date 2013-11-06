@@ -16,14 +16,12 @@ public class MovingPlatformTrigger : MonoBehaviour {
 	void OnTriggerEnter(Collider col) {
 		if(col.gameObject != null && col.gameObject.rigidbody != null) {
 			col.transform.parent = transform;
-			Debug.Log("triggerEnter");
 		}
 	}
 	
 	void OnTriggerExit(Collider col) {
 		if(col.gameObject != null && col.gameObject.rigidbody != null) {
 			col.transform.parent = null;
-			Debug.Log("triggerExit");
 		}
 	}	
 }

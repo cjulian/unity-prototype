@@ -17,10 +17,16 @@ public class SideviewCharacterController : MonoBehaviour {
 	int numAirJumps = 0;
 	int numMaxAirDash = 1;
 	int numAirDash = 0;
-	bool grounded = false;
-	bool ascending = false;	
-	bool dashing = false;
-	bool dashCoolingDown = false;
+	
+	Vector3 groundedNormal;
+	
+	bool isGrounded = false;
+	bool canRun = false;
+	bool canJump = false;	
+	bool canDash = false;	
+	bool isAscending = false;	
+	bool isDashing = false;
+	bool isDashCooling = false;
 	
 	
 	// Use this for initialization
@@ -30,11 +36,21 @@ public class SideviewCharacterController : MonoBehaviour {
 	
 	// Update is called once per frame
 	void Update () {
+		UpdatePlayerState();
 		GetPlayerInput();
 		UpdateStats();
 	}
-
 	
+	
+	// Sets the various states that the hero can be in, eg. canJump, canDash, etc.
+	void UpdatePlayerState() {
+		canRun = isGrounded;
+		canJump = isGrounded || numMaxAirJumps - numAirJumps > 0;		
+		canDash = !isDashing && !isDashCooling && (isGrounded || numAirDash < numMaxAirDash);
+	}
+	
+	
+	// Gets the player's controller input and moves the hero accordingly
 	void GetPlayerInput() {
 		float hVel = GetHorizontalVelocity();
 		float vVel = GetVerticalVelocity();
@@ -44,8 +60,8 @@ public class SideviewCharacterController : MonoBehaviour {
 	
 	// Calculate the horizontal velocity of the hero based on player input
 	float GetHorizontalVelocity() {
-		float hInputRaw = Input.GetAxisRaw("Horizontal");
-		float hInput = Input.GetAxis("Horizontal");
+		float hInputRaw = Input.GetAxisRaw("Horizontal"); // either -1, 0 or 1
+		float hInput = Input.GetAxis("Horizontal"); // some value between -1 and 1
 		float hVel = 0.0f;
 	
 		// Is player pressing left/right?
@@ -56,11 +72,11 @@ public class SideviewCharacterController : MonoBehaviour {
 				
 				// Player can always dash on the ground, but
 				// can only dash numMaxAirDash times in the air
-				if(!dashing && !dashCoolingDown && (grounded || numAirDash < numMaxAirDash)) {
-					dashing = true;
-					dashCoolingDown = true;
+				if(canDash) {
+					isDashing = true;
+					isDashCooling = true;
 
-					if(!grounded) {
+					if(!isGrounded) {
 						numAirDash++;
 					}
 					
@@ -68,11 +84,11 @@ public class SideviewCharacterController : MonoBehaviour {
 				}
 			}			
 			
-			hVel = dashing ? hInputRaw * dashSpeed : hInput * runSpeed;
+			hVel = isDashing ? hInputRaw * dashSpeed : hInput * runSpeed;
 
 		} else {
 			// Dashing ends if player does not continue pressing left/right
-			dashing = false;
+			isDashing = false;
 		}
 		
 		return hVel;
@@ -84,34 +100,34 @@ public class SideviewCharacterController : MonoBehaviour {
 		
 		float vVel;
 		
-		// The player will not descend while air dashing
-		if(dashing && !grounded && !ascending) { 
+		// The player will not descend while air isDashing
+		if(isDashing && !isGrounded && !isAscending) { 
 			vVel = 0.0f;
 		} else {
 			vVel = rigidbody.velocity.y;
 		}
 
 		if(vVel <= 0) {
-			ascending = false;
+			isAscending = false;
 		}
 		
 		// If the player hits jump and the hero is in a state such that he can jump,
 		// then make the hero jump.  Includes double-jump check.
-		if(Input.GetButtonDown("Jump") && (grounded || numAirJumps < numMaxAirJumps)) {
+		if(Input.GetButtonDown("Jump") && (isGrounded || numAirJumps < numMaxAirJumps)) {
 			
 			vVel = jumpSpeed;
-			ascending = true;
+			isAscending = true;
 			
-			if(!grounded) {
+			if(!isGrounded) {
 				numAirJumps++;
 			}			
 		}
 		
 		// If the player lets go of jump button mid jump, immediately start descending.
 		// This allows for variable jump height.
-		if(ascending && Input.GetButtonUp("Jump")) {
+		if(isAscending && Input.GetButtonUp("Jump")) {
 			vVel = 0;
-			ascending = false;
+			isAscending = false;
 		}
 		
 		return vVel;
@@ -121,26 +137,41 @@ public class SideviewCharacterController : MonoBehaviour {
 	// Controls durations of dash move as well as cooldown
 	IEnumerator DashTimer() {
 		yield return new WaitForSeconds(dashDuration);
-		dashing = false;
+		isDashing = false;
 		yield return new WaitForSeconds(dashCoolDown);
-		dashCoolingDown = false;
+		isDashCooling = false;
 	}
 	
 	
-	// Check for grounded state
+	// Check for isGrounded state
 	void OnCollisionEnter(Collision collision) {
-        foreach (ContactPoint contact in collision.contacts) {
-            if(contact.normal == Vector3.up) {            
-				grounded = true;
+		CheckGroundedState(collision);
+	}
+
+	void OnCollisionStay(Collision collision) {
+		CheckGroundedState(collision);
+	}
+	
+	void CheckGroundedState(Collision collision) {
+
+		foreach (ContactPoint contact in collision.contacts) {
+
+			if(Mathf.Abs(contact.normal.x) < 0.8f && contact.normal.y > 0.7f) {
+			// if(contact.normal == Vector3.up) {
+				isGrounded = true;
 				numAirJumps = 0;
 				numAirDash = 0;
 			}
-        }
+			
+			groundedNormal = contact.normal;
+        }	
 	}
 	
-	// Release grounded state
+	
+	// Release isGrounded state
 	void OnCollisionExit(Collision col) {
-		grounded = false;
+		isGrounded = false;
+		groundedNormal = Vector3.zero;
 	}	
 
 	
@@ -148,16 +179,19 @@ public class SideviewCharacterController : MonoBehaviour {
 	void UpdateStats() {
 		if(stats != null) {
 			stats.text =
-				"grounded: " + grounded.ToString() + "\n" +
-				"air jumps remaining: " + (numMaxAirJumps - numAirJumps);
+				" isGrounded: " + isGrounded.ToString() + 
+				"\n isGrounded normal: " + groundedNormal.ToString() +
+				"\n air jumps remaining: " + (numMaxAirJumps - numAirJumps) +
+				"\n air dash remaining: " + (numMaxAirDash - numAirDash);
+			
 		}
 	}
 	
 	// For use with the GroundedTrigger (was incorrect approach)
 //	void UpdateGroundedState(bool g) {
-//		grounded = g;
+//		isGrounded = g;
 //
-//		if(grounded) {
+//		if(isGrounded) {
 //			numAirJumps = 0;
 //			numAirDash = 0;
 //		}
