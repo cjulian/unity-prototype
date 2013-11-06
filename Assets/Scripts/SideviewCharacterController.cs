@@ -18,9 +18,11 @@ public class SideviewCharacterController : MonoBehaviour {
 	int numMaxAirDash = 1;
 	int numAirDash = 0;
 	
-	Vector3 groundedNormal;
+	Vector3 groundNormal;
+	float groundAngle;
 	
 	bool isGrounded = false;
+	bool isGroundedStable = false;
 	bool canRun = false;
 	bool canJump = false;	
 	bool canDash = false;	
@@ -38,13 +40,13 @@ public class SideviewCharacterController : MonoBehaviour {
 	void Update () {
 		UpdatePlayerState();
 		GetPlayerInput();
-		UpdateStats();
+		UpdateDebugInfo();
 	}
 	
 	
 	// Sets the various states that the hero can be in, eg. canJump, canDash, etc.
 	void UpdatePlayerState() {
-		canRun = isGrounded;
+		canRun = isGroundedStable;
 		canJump = isGrounded || numMaxAirJumps - numAirJumps > 0;		
 		canDash = !isDashing && !isDashCooling && (isGrounded || numAirDash < numMaxAirDash);
 	}
@@ -85,10 +87,11 @@ public class SideviewCharacterController : MonoBehaviour {
 			}			
 			
 			hVel = isDashing ? hInputRaw * dashSpeed : hInput * runSpeed;
+			hVel *= (90 - groundAngle) / 90;
 
 		} else {
 			// Dashing ends if player does not continue pressing left/right
-			isDashing = false;
+			isDashing = false;			
 		}
 		
 		return hVel;
@@ -147,23 +150,36 @@ public class SideviewCharacterController : MonoBehaviour {
 	void OnCollisionEnter(Collision collision) {
 		CheckGroundedState(collision);
 	}
-
 	void OnCollisionStay(Collision collision) {
 		CheckGroundedState(collision);
 	}
-	
 	void CheckGroundedState(Collision collision) {
 
 		foreach (ContactPoint contact in collision.contacts) {
 
-			if(Mathf.Abs(contact.normal.x) < 0.8f && contact.normal.y > 0.7f) {
-			// if(contact.normal == Vector3.up) {
+			groundNormal = contact.normal;
+			groundAngle = GetGroundAngleAtan2(contact.normal);
+			
+//			if(Mathf.Abs(contact.normal.x) < 0.8f && contact.normal.y > 0.6f) {
+//				isGrounded = true;
+//				numAirJumps = 0;
+//				numAirDash = 0;
+//			}
+			
+			if(groundAngle == 90) {
+				groundAngle = 0;	
+			}
+			
+			if(groundAngle < 75) {
 				isGrounded = true;
 				numAirJumps = 0;
 				numAirDash = 0;
+				
+				if(groundAngle < 50) {
+					isGroundedStable = true;
+				}
 			}
-			
-			groundedNormal = contact.normal;
+
         }	
 	}
 	
@@ -171,29 +187,32 @@ public class SideviewCharacterController : MonoBehaviour {
 	// Release isGrounded state
 	void OnCollisionExit(Collision col) {
 		isGrounded = false;
-		groundedNormal = Vector3.zero;
+		isGroundedStable = false;
+		groundNormal = Vector3.zero;
+		groundAngle = 0.0f;
 	}	
 
 	
+	// get the angle of the ground described by v
+	float GetGroundAngleAtan2(Vector3 v) {
+		return Mathf.Atan2(v.x, v.y) * Mathf.Rad2Deg * -1;	
+	}
+	// get the angle of the ground described by v
+	float GetGroundAngle(Vector3 v) {
+		return Vector3.Angle(new Vector3(v.x, 0, 0), v);
+	}
+	
+	
 	// For Debugging purposes
-	void UpdateStats() {
+	void UpdateDebugInfo() {
 		if(stats != null) {
 			stats.text =
 				" isGrounded: " + isGrounded.ToString() + 
-				"\n isGrounded normal: " + groundedNormal.ToString() +
+				"\n isGroundedStable: " + isGroundedStable.ToString() + 
+				"\n Ground normal: " + groundNormal.ToString() +
+				"\n Ground angle: " + groundAngle.ToString() +
 				"\n air jumps remaining: " + (numMaxAirJumps - numAirJumps) +
-				"\n air dash remaining: " + (numMaxAirDash - numAirDash);
-			
+				"\n air dash remaining: " + (numMaxAirDash - numAirDash);			
 		}
-	}
-	
-	// For use with the GroundedTrigger (was incorrect approach)
-//	void UpdateGroundedState(bool g) {
-//		isGrounded = g;
-//
-//		if(isGrounded) {
-//			numAirJumps = 0;
-//			numAirDash = 0;
-//		}
-//	}	
+	}	
 }
